@@ -5,5 +5,5 @@ Brainfuck to x86_64 compiler.
 ```bash
 git clone https://github.com/knarkzel/bcc
 cd bcc/
-cargo run files/fibonacci.bf
+cargo run -- files/beer.bf
 ```

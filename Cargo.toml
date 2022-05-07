@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.57"
 chumsky = "0.8.0"
+fehler = "1.0.0"
 gumdrop = "0.8.1"

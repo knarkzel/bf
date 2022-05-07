@@ -1,7 +1,10 @@
 [package]
 name = "bf"
+authors = ["Knarkzel <knarkzel@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "brainfuck to x86-64 assembly compiler and interpreter"
 
 [dependencies]
 anyhow = "1.0.57"

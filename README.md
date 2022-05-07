@@ -1,6 +1,8 @@
 # bcc
 
-Brainfuck to x86-64 compiler and interpreter.
+Brainfuck to x86-64 assembly compiler and interpreter.
+
+# Running
 
 ```bash
 git clone https://github.com/knarkzel/bcc

@@ -3,46 +3,10 @@
 use anyhow::Error;
 use chumsky::prelude::*;
 use fehler::throws;
-use gumdrop::Options;
-use std::fs::read_to_string;
-use std::fs::File;
-use std::io::BufWriter;
-use std::io::Write;
-use std::io::{stdin, Read};
-use std::path::PathBuf;
-
-// Arguments
-#[derive(Options)]
-struct Args {
-    // Help option
-    #[options(help = "print help message")]
-    help: bool,
-
-    // Command
-    #[options(command)]
-    command: Option<Command>,
-}
-
-#[derive(Options)]
-enum Command {
-    Build(BuildOpts),
-    Run(RunOpts),
-}
-
-#[derive(Options)]
-struct BuildOpts {
-    #[options(free, help = "brainfuck file to compile")]
-    input: PathBuf,
-
-    #[options(free, help = "output name")]
-    output: PathBuf,
-}
-
-#[derive(Options)]
-struct RunOpts {
-    #[options(free, help = "brainfuck file to run")]
-    input: PathBuf,
-}
+use std::{
+    fs::{read_to_string, File},
+    io::{stdin, BufWriter, Read, Write},
+};
 
 // Parser
 #[derive(Clone, Debug, PartialEq)]
@@ -71,11 +35,13 @@ fn parser() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
     })
 }
 
-fn sanitize(input: String) -> String {
-    input
+#[throws]
+fn tokens(input: &str) -> Vec<Token> {
+    let input = read_to_string(input)?
         .chars()
         .filter(|it| "<>+-,.[]".chars().any(|token| *it == token))
-        .collect()
+        .collect::<String>();
+    parser().parse(input).expect("Error while parsing")
 }
 
 // Interpreter
@@ -147,7 +113,7 @@ struct Assembler {
 
 impl Assembler {
     #[throws]
-    fn new(file_name: &PathBuf) -> Self {
+    fn new(file_name: &str) -> Self {
         // Open .asm file
         let file = File::create(file_name)?;
         let output = BufWriter::new(file);
@@ -195,21 +161,19 @@ impl Assembler {
 
 #[throws]
 fn main() {
-    let args = Args::parse_args_default_or_exit();
-    match args.command.expect("Expected build or run command") {
-        Command::Build(opts) => {
-            let body = read_to_string(opts.input)?;
-            let input = sanitize(body);
-            let tokens = parser().parse(input).expect("Error while parsing");
-            let mut assembler = Assembler::new(&opts.output)?;
-            assembler.assembly(&tokens)?;
-        }
-        Command::Run(opts) => {
-            let body = read_to_string(opts.input)?;
-            let input = sanitize(body);
-            let tokens = parser().parse(input).expect("Error while parsing");
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let slice = args.iter().map(String::as_str).collect::<Vec<_>>();
+    match slice[..] {
+        ["run", input] => {
+            let tokens = tokens(input)?;
             let mut interpreter = Interpreter::new();
             interpreter.interpret(&tokens);
-        },
+        }
+        ["build", input, output] => {
+            let tokens = tokens(input)?;
+            let mut assembler = Assembler::new(output)?;
+            assembler.assembly(&tokens)?;
+        }
+        _ => println!("bf: run <input>, build <input> <output>"),
     }
 }

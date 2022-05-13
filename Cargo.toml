@@ -7,6 +7,9 @@ license = "MIT"
 description = "brainfuck to x86-64 assembly compiler and interpreter"
 
 [dependencies]
-anyhow = "1.0.57"
-chumsky = "0.8.0"
-fehler = "1.0.0"
+nom = "7.0"
+anyhow = "1.0"
+fehler = "1.0"
+
+[profile.dev]
+overflow-checks = false

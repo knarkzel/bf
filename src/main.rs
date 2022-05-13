@@ -1,8 +1,10 @@
 #![feature(slice_group_by)]
 
 use anyhow::Error;
-use chumsky::prelude::*;
 use fehler::throws;
+use nom::{
+    branch::alt, bytes::complete::tag, combinator::map, multi::many0, sequence::delimited, IResult,
+};
 use std::{
     fs::{read_to_string, File},
     io::{stdin, BufWriter, Read, Write},
@@ -20,40 +22,28 @@ enum Token {
     Loop(Vec<Self>),
 }
 
-fn parser() -> impl Parser<char, Vec<Token>, Error = Simple<char>> {
-    recursive(|bf| {
-        choice((
-            just('<').to(Token::Left),
-            just('>').to(Token::Right),
-            just('+').to(Token::Add),
-            just('-').to(Token::Sub),
-            just(',').to(Token::Read),
-            just('.').to(Token::Write),
-            bf.delimited_by(just('['), just(']')).map(Token::Loop),
-        ))
-        .repeated()
-    })
-}
-
-#[throws]
-fn tokens(input: &str) -> Vec<Token> {
-    let input = read_to_string(input)?
-        .chars()
-        .filter(|it| "<>+-,.[]".chars().any(|token| *it == token))
-        .collect::<String>();
-    parser().parse(input).expect("Error while parsing")
+fn parse(input: &str) -> IResult<&str, Vec<Token>> {
+    many0(alt((
+        map(tag("<"), |_| Token::Left),
+        map(tag(">"), |_| Token::Right),
+        map(tag("+"), |_| Token::Add),
+        map(tag("-"), |_| Token::Sub),
+        map(tag(","), |_| Token::Read),
+        map(tag("."), |_| Token::Write),
+        map(delimited(tag("["), parse, tag("]")), Token::Loop),
+    )))(input)
 }
 
 // Interpreter
 struct Interpreter {
-    memory: [u8; 65536],
+    memory: [u8; 30000],
     data_pointer: usize,
 }
 
 impl Interpreter {
     fn new() -> Self {
         Self {
-            memory: [0; 65536],
+            memory: [0; 30000],
             data_pointer: 0,
         }
     }
@@ -159,21 +149,30 @@ impl Assembler {
     }
 }
 
+fn tokens(input: &str) -> Vec<Token> {
+    let body = read_to_string(input)
+        .expect("Invalid file name")
+        .chars()
+        .filter(|it| "<>+-,.[]".chars().any(|token| *it == token))
+        .collect::<String>();
+    parse(&body).expect("Error while parsing").1
+}
+
 #[throws]
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     let slice = args.iter().map(String::as_str).collect::<Vec<_>>();
     match slice[..] {
         ["run", input] => {
-            let tokens = tokens(input)?;
-            let mut interpreter = Interpreter::new();
-            interpreter.interpret(&tokens);
+            let tokens = tokens(input);
+            Interpreter::new().interpret(&tokens);
         }
+        ["run", ..] => println!("bf: run <input>"),
         ["build", input, output] => {
-            let tokens = tokens(input)?;
-            let mut assembler = Assembler::new(output)?;
-            assembler.assembly(&tokens)?;
+            let tokens = tokens(input);
+            Assembler::new(output)?.assembly(&tokens)?;
         }
-        _ => println!("bf: run <input>, build <input> <output>"),
+        ["build", ..] => println!("bf: build <input> <output>"),
+        _ => println!("bf: run, build"),
     }
 }

@@ -3,13 +3,22 @@
 Brainfuck to x86-64 assembly compiler and interpreter.
 
 ```bash
-cargo install --git https://github.com/knarkzel/bcc
+git clone https://github.com/knarkzel/bf
+cd bf/
+cargo install --path .
 
-# Interprete
+# Interpreter
 bf run examples/beer.bf
 
-# Compile
-bf build examples/beer.bf output.asm
-clang -fno-pie -no-pie -nostdlib -fno-integrated-as -Wa,-msyntax=intel,-mnaked-reg -s output.asm -o output
-./output
+# Compiler
+function bcc() {
+    basename=$(basename -- "$1")
+    filename="${basename%.*}"
+    bf build $1 $filename.asm
+    clang -fno-pie -no-pie -nostdlib -fno-integrated-as -Wa,-msyntax=intel,-mnaked-reg -s $filename.asm -o $filename
+    rm $filename.asm
+    ls -alh $filename
+}
+
+bcc examples/beer.bf
 ```
